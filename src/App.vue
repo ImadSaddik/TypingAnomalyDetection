@@ -18,18 +18,72 @@
 
 <script>
 import behaviorTracker from './services/behaviorTracker.js'
+import { extractFeaturesFromRawEvents } from './services/featureExtractor.js'
 
 export default {
   name: 'App',
   data() {
-    return {}
+    return {
+      recordingDurationInSeconds: 10,
+      collectedFeatures: [],
+      recordingInterval: null,
+    }
   },
-  methods: {},
   mounted() {
-    behaviorTracker.startTracking()
+    this.loadStoredFeatures()
+    this.startRecordingData()
   },
   beforeUnmount() {
-    behaviorTracker.stopTracking()
+    this.stopRecording()
+  },
+  methods: {
+    loadStoredFeatures() {
+      try {
+        const storedData = localStorage.getItem('behaviorFeatures')
+        if (storedData) {
+          this.collectedFeatures = JSON.parse(storedData)
+        }
+      } catch (error) {
+        console.error('Error loading stored features:', error)
+        this.collectedFeatures = []
+      }
+    },
+    startRecordingData() {
+      behaviorTracker.startTracking()
+
+      this.recordingInterval = setInterval(() => {
+        const events = behaviorTracker.getEventsAndReset()
+        const features = extractFeaturesFromRawEvents(events, this.recordingDurationInSeconds)
+
+        if (features && !this.isEmptyObject(features)) {
+          const featureEntry = {
+            timestamp: new Date().toISOString(),
+            features: features,
+          }
+
+          this.collectedFeatures.push(featureEntry)
+          this.saveFeaturesToStorage()
+        }
+      }, this.recordingDurationInSeconds * 1000)
+    },
+    isEmptyObject(object) {
+      return Object.keys(object).length === 0
+    },
+    saveFeaturesToStorage() {
+      try {
+        console.log('Saving features to localStorage:', this.collectedFeatures)
+        localStorage.setItem('behaviorFeatures', JSON.stringify(this.collectedFeatures))
+      } catch (error) {
+        console.error('Error saving features to localStorage:', error)
+      }
+    },
+    stopRecording() {
+      if (this.recordingInterval) {
+        clearInterval(this.recordingInterval)
+        this.recordingInterval = null
+      }
+      behaviorTracker.stopTracking()
+    },
   },
 }
 </script>
