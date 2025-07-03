@@ -73,7 +73,7 @@ export default {
 
       this.recordingInterval = setInterval(() => {
         const events = behaviorTracker.getEventsAndReset()
-        const features = extractFeaturesFromRawEvents(events, this.recordingDurationInSeconds)
+        const features = extractFeaturesFromRawEvents(events)
 
         if (features && !this.isEmptyObject(features)) {
           const featureEntry = {
