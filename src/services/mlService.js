@@ -83,6 +83,31 @@ const mlService = {
       console.error('Error saving model or scaler:', error)
     }
   },
+
+  async loadModel() {
+    try {
+      const loadedModel = await tf.loadLayersModel(MODEL_STORAGE_KEY)
+      const scalerLoaded = featureScaler.load()
+      if (loadedModel && scalerLoaded) {
+        this.model = loadedModel
+        console.log('Previously trained model and scaler loaded successfully.')
+        return true
+      }
+    } catch (error) {
+      console.error('Error loading model or scaler:', error)
+    }
+    return false
+  },
+
+  async resetModel() {
+    try {
+      await tf.io.removeModel(MODEL_STORAGE_KEY)
+      this.model = null
+      console.log('Model removed from IndexedDB.')
+    } catch (error) {
+      console.error('Error removing model:', error)
+    }
+  },
 }
 
 export default mlService
