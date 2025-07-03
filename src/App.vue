@@ -13,6 +13,10 @@
       rows="8"
       placeholder="Type anything you want here..."
     ></textarea>
+
+    <p v-if="collectedFeatures.length > 0" class="description secondary">
+      Collected {{ collectedFeatures.length }} data points in total
+    </p>
   </section>
 </template>
 
