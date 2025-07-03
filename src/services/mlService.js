@@ -84,6 +84,29 @@ const mlService = {
     }
   },
 
+  async predictAnomalyScore(featureData) {
+    if (!this.model || !featureScaler.mean || !featureScaler.standardDeviation) {
+      console.log('Model or scaler not ready for prediction.')
+      return null
+    }
+
+    return tf.tidy(() => {
+      // 1. Convert the single feature object to a 2D tensor
+      const featureArray = this.featureNames.map((name) => featureData[name] || 0)
+      const inputTensor = tf.tensor2d([featureArray])
+
+      // 2. Normalize the input using the pre-fitted scaler
+      const normalizedInput = featureScaler.transform(inputTensor)
+
+      // 3. Get the model's reconstruction
+      const reconstruction = this.model.predict(normalizedInput)
+
+      // 4. Calculate the Mean Squared Error between the input and the reconstruction
+      const error = tf.losses.meanSquaredError(normalizedInput, reconstruction)
+      return error.data()
+    })
+  },
+
   async loadModel() {
     try {
       const loadedModel = await tf.loadLayersModel(MODEL_STORAGE_KEY)

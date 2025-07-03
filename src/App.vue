@@ -7,6 +7,10 @@
       learn and adapt to your typing style.
     </p>
 
+    <p v-if="lastAnomalyScore !== null" class="description">
+      Anomaly Score: {{ lastAnomalyScore.toFixed(4) }}
+    </p>
+
     <textarea
       class="custom-textarea"
       id="text-input-area"
@@ -20,12 +24,6 @@
 
     <div class="action-buttons">
       <button class="custom-btn custom-btn-white" @click="clearLocalStorage">Clear data</button>
-      <button
-        :class="['custom-btn custom-btn-black', { disabled: !canUseModelForInference }]"
-        @click="handleInference"
-      >
-        {{ inferenceModeEnabled ? 'Disable inference' : 'Start inference' }}
-      </button>
     </div>
   </section>
 </template>
@@ -43,9 +41,9 @@ export default {
       recordingDurationInSeconds: 10,
       collectedFeatures: [],
       recordingInterval: null,
-      inferenceModeEnabled: false,
       isTraining: false,
       trainingTriggerInterval: 50,
+      lastAnomalyScore: null,
     }
   },
   computed: {
@@ -85,7 +83,7 @@ export default {
     startRecordingData() {
       behaviorTracker.startTracking()
 
-      this.recordingInterval = setInterval(() => {
+      this.recordingInterval = setInterval(async () => {
         const events = behaviorTracker.getEventsAndReset()
         const features = extractFeaturesFromRawEvents(events)
 
@@ -97,6 +95,15 @@ export default {
 
           this.collectedFeatures.push(featureEntry)
           this.saveFeaturesToStorage()
+
+          // Inference if model is loaded
+          if (mlService.model) {
+            const score = await mlService.predictAnomalyScore(features)
+            if (score) {
+              // .data() returns an array-like object, so we take the first element
+              this.lastAnomalyScore = score[0]
+            }
+          }
         }
       }, this.recordingDurationInSeconds * 1000)
     },
@@ -126,14 +133,6 @@ export default {
         console.log('All data, model, and scaler parameters have been cleared.')
       } catch (error) {
         console.error('Error clearing local storage:', error)
-      }
-    },
-    handleInference() {
-      // TODO: Implement the logic to handle inference using the collected features
-      if (this.inferenceModeEnabled) {
-        this.inferenceModeEnabled = false
-      } else {
-        this.inferenceModeEnabled = true
       }
     },
     async trainUserModel() {
