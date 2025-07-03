@@ -17,6 +17,16 @@
     <p v-if="collectedFeatures.length > 0" class="description secondary">
       Collected {{ collectedFeatures.length }} data points in total
     </p>
+
+    <div class="action-buttons">
+      <button class="custom-btn custom-btn-white" @click="clearLocalStorage">Clear data</button>
+      <button
+        :class="['custom-btn custom-btn-black', { disabled: !canUseModelForInference }]"
+        @click="handleInference"
+      >
+        {{ inferenceModeEnabled ? 'Disable inference' : 'Start inference' }}
+      </button>
+    </div>
   </section>
 </template>
 
@@ -31,7 +41,13 @@ export default {
       recordingDurationInSeconds: 10,
       collectedFeatures: [],
       recordingInterval: null,
+      inferenceModeEnabled: false,
     }
+  },
+  computed: {
+    canUseModelForInference() {
+      return this.collectedFeatures.length > 100
+    },
   },
   mounted() {
     this.loadStoredFeatures()
@@ -88,6 +104,23 @@ export default {
       }
       behaviorTracker.stopTracking()
     },
+    clearLocalStorage() {
+      try {
+        localStorage.removeItem('behaviorFeatures')
+        this.collectedFeatures = []
+        console.log('Local storage cleared successfully.')
+      } catch (error) {
+        console.error('Error clearing local storage:', error)
+      }
+    },
+    handleInference() {
+      // TODO: Implement the logic to handle inference using the collected features
+      if (this.inferenceModeEnabled) {
+        this.inferenceModeEnabled = false
+      } else {
+        this.inferenceModeEnabled = true
+      }
+    },
   },
 }
 </script>
@@ -126,5 +159,55 @@ export default {
   max-width: 100%;
   min-height: 200px;
   box-sizing: border-box;
+}
+
+.custom-btn {
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem !important;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  min-width: 20%;
+}
+
+.custom-btn-white {
+  background-color: white;
+  color: black;
+}
+
+.custom-btn-white:hover {
+  background-color: #f0f0f0;
+  border-color: #aaa !important;
+}
+
+.custom-btn-black {
+  background-color: black;
+  color: white;
+}
+
+.custom-btn-black:hover {
+  background-color: #333;
+  color: #f0f0f0;
+  border-color: #f0f0f0;
+}
+
+.disabled {
+  background-color: #f0f0f0;
+  color: #aaa;
+  cursor: not-allowed;
+  pointer-events: none;
+  user-select: none;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  width: 100%;
 }
 </style>
