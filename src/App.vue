@@ -17,14 +17,20 @@
 </template>
 
 <script>
+import behaviorTracker from './services/behaviorTracker.js'
+
 export default {
   name: 'App',
   data() {
     return {}
   },
   methods: {},
-  async mounted() {},
-  beforeUnmount() {},
+  mounted() {
+    behaviorTracker.startTracking()
+  },
+  beforeUnmount() {
+    behaviorTracker.stopTracking()
+  },
 }
 </script>
 
