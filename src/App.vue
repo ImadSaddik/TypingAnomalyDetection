@@ -115,7 +115,6 @@ export default {
             const score = await mlService.predictAnomalyScore(features)
             if (score) {
               // .data() returns an array-like object, so we take the first element
-              console.log('Anomaly score:', score)
               this.lastAnomalyScore = score[0]
             }
           }
@@ -147,7 +146,6 @@ export default {
         featureScaler.reset()
         this.lastAnomalyScore = null
         this.anomalyThreshold = null
-        console.log('All data, model, and scaler parameters have been cleared.')
       } catch (error) {
         console.error('Error clearing local storage:', error)
       }
