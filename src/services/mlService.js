@@ -2,9 +2,11 @@ import * as tf from '@tensorflow/tfjs'
 import featureScaler from './featureScaler.js'
 
 const MODEL_STORAGE_KEY = 'indexeddb://keystroke-dynamics-model'
+const THRESHOLD_STORAGE_KEY = 'keystroke-anomaly-threshold'
 
 const mlService = {
   model: null,
+  anomalyThreshold: null,
   featureNames: [
     'holdTimeMean',
     'holdTimeStandardDeviation',
@@ -74,11 +76,27 @@ const mlService = {
 
     console.log('Model training complete.')
 
-    // 6. Save the model and the scaler parameters
+    // 6. Calculate anomaly threshold from training data reconstruction errors
+    const reconstructions = this.model.predict(normalizedData)
+    // We use Reduction.NONE to get the error for each sample individually
+    const reconstructionErrors = tf.losses.meanSquaredError(
+      normalizedData,
+      reconstructions,
+      tf.losses.Reduction.NONE,
+    )
+
+    const { mean, variance } = tf.moments(reconstructionErrors)
+    const standardDeviation = tf.sqrt(variance)
+    // The threshold is the mean error plus 2.5 standard deviations.
+    // This is a common statistical approach to define an outlier boundary.
+    this.anomalyThreshold = (await mean.add(standardDeviation.mul(2.5)).data())[0]
+    console.log(`New anomaly threshold calculated: ${this.anomalyThreshold}`)
+
+    // 7. Save the model, scaler, and the new threshold
     try {
       await this.model.save(MODEL_STORAGE_KEY)
-      console.log('Model saved to IndexedDB.')
       await featureScaler.save()
+      localStorage.setItem(THRESHOLD_STORAGE_KEY, this.anomalyThreshold)
     } catch (error) {
       console.error('Error saving model or scaler:', error)
     }
@@ -111,13 +129,16 @@ const mlService = {
     try {
       const loadedModel = await tf.loadLayersModel(MODEL_STORAGE_KEY)
       const scalerLoaded = featureScaler.load()
-      if (loadedModel && scalerLoaded) {
+      const storedThreshold = localStorage.getItem(THRESHOLD_STORAGE_KEY)
+
+      if (loadedModel && scalerLoaded && storedThreshold) {
         this.model = loadedModel
-        console.log('Previously trained model and scaler loaded successfully.')
+        this.anomalyThreshold = parseFloat(storedThreshold)
+        console.log('Previously trained model, scaler, and threshold loaded successfully.')
         return true
       }
     } catch (error) {
-      console.error('Error loading model or scaler:', error)
+      console.log('Error loading model:', error)
     }
     return false
   },
@@ -125,8 +146,9 @@ const mlService = {
   async resetModel() {
     try {
       await tf.io.removeModel(MODEL_STORAGE_KEY)
+      localStorage.removeItem(THRESHOLD_STORAGE_KEY)
       this.model = null
-      console.log('Model removed from IndexedDB.')
+      this.anomalyThreshold = null
     } catch (error) {
       console.error('Error removing model:', error)
     }
