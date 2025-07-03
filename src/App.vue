@@ -33,6 +33,7 @@
 <script>
 import behaviorTracker from './services/behaviorTracker.js'
 import { extractFeaturesFromRawEvents } from './services/featureExtractor.js'
+import mlService from './services/mlService.js'
 
 export default {
   name: 'App',
@@ -42,11 +43,22 @@ export default {
       collectedFeatures: [],
       recordingInterval: null,
       inferenceModeEnabled: false,
+      isTraining: false,
+      trainingTriggerInterval: 50,
     }
   },
   computed: {
     canUseModelForInference() {
       return this.collectedFeatures.length > 100
+    },
+  },
+  watch: {
+    collectedFeatures(newFeatures) {
+      const shouldTrain =
+        newFeatures.length > 0 && newFeatures.length % this.trainingTriggerInterval === 0
+      if (shouldTrain && !this.isTraining) {
+        this.trainUserModel()
+      }
     },
   },
   mounted() {
@@ -117,6 +129,18 @@ export default {
         this.inferenceModeEnabled = false
       } else {
         this.inferenceModeEnabled = true
+      }
+    },
+    async trainUserModel() {
+      this.isTraining = true
+      console.log(`Training model with ${this.collectedFeatures.length} data points.`)
+      try {
+        await mlService.trainModel(this.collectedFeatures)
+        console.log('Model training cycle completed successfully.')
+      } catch (error) {
+        console.error('An error occurred during model training:', error)
+      } finally {
+        this.isTraining = false
       }
     },
   },
