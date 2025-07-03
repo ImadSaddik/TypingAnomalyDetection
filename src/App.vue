@@ -33,6 +33,7 @@
 <script>
 import behaviorTracker from './services/behaviorTracker.js'
 import { extractFeaturesFromRawEvents } from './services/featureExtractor.js'
+import featureScaler from './services/featureScaler.js'
 import mlService from './services/mlService.js'
 
 export default {
@@ -61,7 +62,8 @@ export default {
       }
     },
   },
-  mounted() {
+  async mounted() {
+    await mlService.loadModel()
     this.loadStoredFeatures()
     this.startRecordingData()
   },
@@ -115,10 +117,13 @@ export default {
       }
       behaviorTracker.stopTracking()
     },
-    clearLocalStorage() {
+    async clearLocalStorage() {
       try {
         localStorage.removeItem('behaviorFeatures')
         this.collectedFeatures = []
+        await mlService.resetModel()
+        featureScaler.reset()
+        console.log('All data, model, and scaler parameters have been cleared.')
       } catch (error) {
         console.error('Error clearing local storage:', error)
       }
