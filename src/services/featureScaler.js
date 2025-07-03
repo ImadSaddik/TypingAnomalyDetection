@@ -54,6 +54,13 @@ const featureScaler = {
     }
     return false
   },
+
+  reset() {
+    localStorage.removeItem(SCALER_STORAGE_KEY)
+    this.mean = null
+    this.standardDeviation = null
+    console.log('Scaler parameters removed from localStorage.')
+  },
 }
 
 export default featureScaler
