@@ -33,6 +33,12 @@ const behaviorTracker = {
       this.events.push({ type: 'mousemove', timeStamp: performance.now() })
     }
   },
+
+  getEventsAndReset() {
+    const currentEvents = [...this.events]
+    this.events = []
+    return currentEvents
+  },
 }
 
 export default behaviorTracker
