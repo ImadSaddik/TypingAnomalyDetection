@@ -4,21 +4,19 @@ const behaviorTracker = {
 
   startTracking() {
     if (this.isTracking) return
-    console.log('Behavior tracking started.')
     this.isTracking = true
     this.events = []
 
     document.addEventListener('keydown', this.handleKeyDown.bind(this))
-    document.addEventListener('mousemove', this.handleMouseMove.bind(this))
+    document.addEventListener('keyup', this.handleKeyUp.bind(this))
   },
 
   stopTracking() {
     if (!this.isTracking) return
-    console.log('Behavior tracking stopped.')
     this.isTracking = false
 
     document.removeEventListener('keydown', this.handleKeyDown.bind(this))
-    document.removeEventListener('mousemove', this.handleMouseMove.bind(this))
+    document.removeEventListener('keyup', this.handleKeyUp.bind(this))
     return this.events
   },
 
@@ -28,9 +26,9 @@ const behaviorTracker = {
     }
   },
 
-  handleMouseMove() {
+  handleKeyUp(event) {
     if (this.isTracking) {
-      this.events.push({ type: 'mousemove', timeStamp: performance.now() })
+      this.events.push({ type: 'keyup', key: event.key, timeStamp: performance.now() })
     }
   },
 
