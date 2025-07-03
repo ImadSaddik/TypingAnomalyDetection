@@ -7,7 +7,6 @@
       learn and adapt to your typing style.
     </p>
 
-    <!-- Add an input field -->
     <textarea
       class="custom-textarea"
       id="text-input-area"
