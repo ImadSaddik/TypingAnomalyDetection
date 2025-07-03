@@ -91,7 +91,6 @@ export default {
     },
     saveFeaturesToStorage() {
       try {
-        console.log('Saving features to localStorage:', this.collectedFeatures)
         localStorage.setItem('behaviorFeatures', JSON.stringify(this.collectedFeatures))
       } catch (error) {
         console.error('Error saving features to localStorage:', error)
@@ -108,7 +107,6 @@ export default {
       try {
         localStorage.removeItem('behaviorFeatures')
         this.collectedFeatures = []
-        console.log('Local storage cleared successfully.')
       } catch (error) {
         console.error('Error clearing local storage:', error)
       }
