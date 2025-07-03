@@ -46,7 +46,7 @@ export default {
       collectedFeatures: [],
       recordingInterval: null,
       isTraining: false,
-      trainingTriggerInterval: 50,
+      trainingTriggerInterval: 10,
       lastAnomalyScore: null,
       anomalyThreshold: null,
     }
@@ -60,12 +60,15 @@ export default {
     },
   },
   watch: {
-    collectedFeatures(newFeatures) {
-      const shouldTrain =
-        newFeatures.length > 0 && newFeatures.length % this.trainingTriggerInterval === 0
-      if (shouldTrain && !this.isTraining) {
-        this.trainUserModel()
-      }
+    collectedFeatures: {
+      handler(newFeatures) {
+        const shouldTrain =
+          newFeatures.length > 0 && newFeatures.length % this.trainingTriggerInterval === 0
+        if (shouldTrain && !this.isTraining) {
+          this.trainUserModel()
+        }
+      },
+      deep: true,
     },
   },
   async mounted() {
