@@ -7,8 +7,12 @@
       learn and adapt to your typing style.
     </p>
 
-    <p v-if="lastAnomalyScore !== null" class="description">
-      Anomaly Score: {{ lastAnomalyScore.toFixed(4) }}
+    <p
+      v-if="lastAnomalyScore !== null"
+      class="description"
+      :class="{ 'anomaly-detected': isAnomaly }"
+    >
+      Anomaly score: {{ lastAnomalyScore.toFixed(4) }}
     </p>
 
     <textarea
@@ -44,11 +48,15 @@ export default {
       isTraining: false,
       trainingTriggerInterval: 50,
       lastAnomalyScore: null,
+      anomalyThreshold: null,
     }
   },
   computed: {
-    canUseModelForInference() {
-      return this.collectedFeatures.length > 100
+    isAnomaly() {
+      if (this.lastAnomalyScore === null || this.anomalyThreshold === null) {
+        return false
+      }
+      return this.lastAnomalyScore > this.anomalyThreshold
     },
   },
   watch: {
@@ -61,7 +69,10 @@ export default {
     },
   },
   async mounted() {
-    await mlService.loadModel()
+    const modelLoaded = await mlService.loadModel()
+    if (modelLoaded) {
+      this.anomalyThreshold = mlService.anomalyThreshold
+    }
     this.loadStoredFeatures()
     this.startRecordingData()
   },
@@ -101,6 +112,7 @@ export default {
             const score = await mlService.predictAnomalyScore(features)
             if (score) {
               // .data() returns an array-like object, so we take the first element
+              console.log('Anomaly score:', score)
               this.lastAnomalyScore = score[0]
             }
           }
@@ -130,6 +142,8 @@ export default {
         this.collectedFeatures = []
         await mlService.resetModel()
         featureScaler.reset()
+        this.lastAnomalyScore = null
+        this.anomalyThreshold = null
         console.log('All data, model, and scaler parameters have been cleared.')
       } catch (error) {
         console.error('Error clearing local storage:', error)
@@ -140,6 +154,7 @@ export default {
       console.log(`Training model with ${this.collectedFeatures.length} data points.`)
       try {
         await mlService.trainModel(this.collectedFeatures)
+        this.anomalyThreshold = mlService.anomalyThreshold
         console.log('Model training cycle completed successfully.')
       } catch (error) {
         console.error('An error occurred during model training:', error)
@@ -169,6 +184,11 @@ export default {
   font-size: 1.125rem;
   text-align: center;
   transition: color 0.5s ease;
+}
+
+.anomaly-detected {
+  color: #ef4444;
+  font-weight: bold;
 }
 
 .secondary {
