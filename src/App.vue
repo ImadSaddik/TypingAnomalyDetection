@@ -28,6 +28,16 @@
 
     <div class="action-buttons">
       <button class="custom-btn custom-btn-white" @click="clearLocalStorage">Clear data</button>
+      <button
+        :class="[
+          'custom-btn',
+          isInInferenceMode ? 'custom-btn-white' : 'custom-btn-black',
+          { disabled: !isModelReady },
+        ]"
+        @click="isInInferenceMode = !isInInferenceMode"
+      >
+        {{ isInInferenceMode ? 'Stop inference' : 'Start Inference' }}
+      </button>
     </div>
   </section>
 </template>
@@ -49,6 +59,8 @@ export default {
       trainingTriggerInterval: 10,
       lastAnomalyScore: null,
       anomalyThreshold: null,
+      isInInferenceMode: false,
+      isModelReady: false,
     }
   },
   computed: {
@@ -75,6 +87,7 @@ export default {
     const modelLoaded = await mlService.loadModel()
     if (modelLoaded) {
       this.anomalyThreshold = mlService.anomalyThreshold
+      this.isModelReady = true
     }
     this.loadStoredFeatures()
     this.startRecordingData()
@@ -100,8 +113,22 @@ export default {
       this.recordingInterval = setInterval(async () => {
         const events = behaviorTracker.getEventsAndReset()
         const features = extractFeaturesFromRawEvents(events)
+        if (!features || this.isEmptyObject(features)) {
+          console.warn('No features extracted from events:', events)
+          return
+        }
 
-        if (features && !this.isEmptyObject(features)) {
+        if (this.isInInferenceMode) {
+          if (mlService.model) {
+            console.log('Extracted features for inference:', features)
+            const score = await mlService.predictAnomalyScore(features)
+            if (score) {
+              // .data() returns an array-like object, so we take the first element
+              this.lastAnomalyScore = score[0]
+              return
+            }
+          }
+        } else {
           const featureEntry = {
             timestamp: new Date().toISOString(),
             features: features,
@@ -109,15 +136,6 @@ export default {
 
           this.collectedFeatures.push(featureEntry)
           this.saveFeaturesToStorage()
-
-          // Inference if model is loaded
-          if (mlService.model) {
-            const score = await mlService.predictAnomalyScore(features)
-            if (score) {
-              // .data() returns an array-like object, so we take the first element
-              this.lastAnomalyScore = score[0]
-            }
-          }
         }
       }, this.recordingDurationInSeconds * 1000)
     },
@@ -146,6 +164,7 @@ export default {
         featureScaler.reset()
         this.lastAnomalyScore = null
         this.anomalyThreshold = null
+        this.isModelReady = false
       } catch (error) {
         console.error('Error clearing local storage:', error)
       }
@@ -156,6 +175,7 @@ export default {
       try {
         await mlService.trainModel(this.collectedFeatures)
         this.anomalyThreshold = mlService.anomalyThreshold
+        this.isModelReady = true
         console.log('Model training cycle completed successfully.')
       } catch (error) {
         console.error('An error occurred during model training:', error)
@@ -217,7 +237,7 @@ export default {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-  min-width: 20%;
+  width: 50%;
 }
 
 .custom-btn-white {
