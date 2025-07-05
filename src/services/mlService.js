@@ -82,7 +82,7 @@ const mlService = {
     const reconstructionErrors = tf.losses.meanSquaredError(
       normalizedData,
       reconstructions,
-      tf.losses.Reduction.NONE,
+      tf.Reduction.NONE,
     )
 
     const { mean, variance } = tf.moments(reconstructionErrors)
@@ -108,7 +108,7 @@ const mlService = {
       return null
     }
 
-    return tf.tidy(() => {
+    const errorTensor = tf.tidy(() => {
       // 1. Convert the single feature object to a 2D tensor
       const featureArray = this.featureNames.map((name) => featureData[name] || 0)
       const inputTensor = tf.tensor2d([featureArray])
@@ -120,9 +120,12 @@ const mlService = {
       const reconstruction = this.model.predict(normalizedInput)
 
       // 4. Calculate the Mean Squared Error between the input and the reconstruction
-      const error = tf.losses.meanSquaredError(normalizedInput, reconstruction)
-      return error.data()
+      return tf.losses.meanSquaredError(normalizedInput, reconstruction)
     })
+
+    const score = await errorTensor.data()
+    errorTensor.dispose()
+    return score
   },
 
   async loadModel() {
