@@ -20,7 +20,8 @@ const mlService = {
   ],
 
   async trainModel(trainingData) {
-    if (!trainingData || trainingData.length < 20) {
+    const dataSizeThreshold = 10
+    if (!trainingData || trainingData.length < dataSizeThreshold) {
       return
     }
 
