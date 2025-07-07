@@ -150,6 +150,10 @@ export default {
       }
     },
     startRecordingData() {
+      if (this.recordingInterval) {
+        this.stopRecording()
+      }
+
       behaviorTracker.startTracking()
 
       this.recordingInterval = setInterval(async () => {
