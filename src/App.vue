@@ -163,7 +163,7 @@ export default {
           if (mlService.model) {
             console.log('Extracted features for inference:', features)
             const score = await mlService.predictAnomalyScore(features)
-            if (score) {
+            if (score !== undefined && score !== null) {
               // .data() returns an array-like object, so we take the first element
               this.lastAnomalyScore = score[0]
               return
