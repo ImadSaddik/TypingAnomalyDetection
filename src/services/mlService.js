@@ -138,7 +138,9 @@ const mlService = {
       if (loadedModel && scalerLoaded && storedThreshold) {
         this.model = loadedModel
         this.anomalyThreshold = parseFloat(storedThreshold)
-        console.log('Previously trained model, scaler, and threshold loaded successfully.')
+        console.log('Model loaded successfully:', this.model)
+        console.log('Scaler loaded successfully:', featureScaler)
+        console.log('Anomaly threshold loaded successfully:', this.anomalyThreshold)
         return true
       }
     } catch (error) {
