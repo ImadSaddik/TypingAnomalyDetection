@@ -61,20 +61,24 @@
       />
 
       <div class="probability-card">
-        <h2 class="subtitle">Probability of anomaly:</h2>
+        <h2 class="subtitle">Anomaly detection results:</h2>
         <p
           class="subtitle"
           :class="{ 'anomaly-detected': isAnomaly }"
           style="margin-top: 1.5rem; margin-bottom: 0"
         >
           <span class="description" v-if="lastAnomalyScore !== null">
-            <span class="description" v-if="isAnomaly">Anomaly detected!</span>
-            <span class="description" v-else>Normal behavior</span>
-            ({{ lastAnomalyScore.toFixed(2) }})
+            <strong v-if="isAnomaly">⚠️ Anomaly detected!</strong>
+            <strong v-else>✅ Normal behavior</strong>
+            <br />
+            <span class="score-details">
+              Score: {{ lastAnomalyScore.toFixed(3) }} | Threshold:
+              {{ parseFloat(anomalyThreshold).toFixed(3) }}
+            </span>
           </span>
-          <span class="description secondary" v-else
-            >Start typing to compute the anomaly score</span
-          >
+          <span class="description secondary" v-else>
+            Start typing to compute the anomaly score
+          </span>
         </p>
       </div>
     </div>
@@ -122,6 +126,12 @@ export default {
         }
       },
       deep: true,
+    },
+    anomalyThreshold(newThreshold) {
+      if (newThreshold !== null && mlService.model) {
+        mlService.anomalyThreshold = parseFloat(newThreshold)
+        localStorage.setItem('keystroke-anomaly-threshold', newThreshold)
+      }
     },
   },
   async mounted() {
@@ -399,6 +409,12 @@ export default {
   box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
 }
 
+.score-details {
+  font-size: 0.9rem;
+  color: #6b7280;
+  font-weight: normal;
+}
+
 .probability-card {
   background: white;
   border: 1px solid #eee;
@@ -406,6 +422,11 @@ export default {
   padding: 1rem;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   margin-top: 3rem;
+}
+
+.probability-card:has(.anomaly-detected) {
+  border-color: #ef4444;
+  box-shadow: 0 2px 5px rgba(239, 68, 68, 0.2);
 }
 
 .inference-results {
