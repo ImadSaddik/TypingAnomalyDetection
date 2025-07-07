@@ -15,16 +15,20 @@
       Anomaly score: {{ lastAnomalyScore.toFixed(4) }}
     </p>
 
-    <textarea
-      class="custom-textarea"
-      id="text-input-area"
-      rows="8"
-      placeholder="Type anything you want here..."
-    ></textarea>
-
-    <p v-if="collectedFeatures.length > 0" class="description secondary">
-      Collected {{ collectedFeatures.length }} data points in total
-    </p>
+    <div class="row">
+      <div class="column text-to-type-container">
+        <h2 class="subtitle">Type this:</h2>
+        <p class="prompt-text">{{ currentTextToType }}</p>
+      </div>
+      <div class="column">
+        <textarea
+          class="custom-textarea"
+          id="text-input-area"
+          rows="8"
+          placeholder="Type anything you want here..."
+        ></textarea>
+      </div>
+    </div>
 
     <div class="action-buttons">
       <button class="custom-btn custom-btn-white" @click="clearLocalStorage">Clear data</button>
@@ -39,6 +43,10 @@
         {{ isInInferenceMode ? 'Stop inference' : 'Start Inference' }}
       </button>
     </div>
+
+    <p v-if="collectedFeatures.length > 0" class="description secondary" style="margin-top: 2rem">
+      Collected {{ collectedFeatures.length }} data points in total
+    </p>
   </section>
 </template>
 
@@ -47,6 +55,7 @@ import behaviorTracker from './services/behaviorTracker.js'
 import { extractFeaturesFromRawEvents } from './services/featureExtractor.js'
 import featureScaler from './services/featureScaler.js'
 import mlService from './services/mlService.js'
+import textToTypeList from './assets/textToTypeList.json'
 
 export default {
   name: 'App',
@@ -61,6 +70,7 @@ export default {
       anomalyThreshold: null,
       isInInferenceMode: false,
       isModelReady: false,
+      currentTextToType: '',
     }
   },
   computed: {
@@ -91,6 +101,7 @@ export default {
     }
     this.loadStoredFeatures()
     this.startRecordingData()
+    this.pickRandomText()
   },
   beforeUnmount() {
     this.stopRecording()
@@ -183,6 +194,10 @@ export default {
         this.isTraining = false
       }
     },
+    pickRandomText() {
+      const index = Math.floor(Math.random() * textToTypeList.length)
+      this.currentTextToType = textToTypeList[index]
+    },
   },
 }
 </script>
@@ -192,13 +207,21 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  max-width: 30%;
+  max-width: 50%;
+  text-align: center;
 }
 
 .title {
   font-size: 2.25rem;
   font-weight: bold;
   color: #111827;
+}
+
+.subtitle {
+  font-size: 1.5rem;
+  color: #111827;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
 }
 
 .description {
@@ -217,15 +240,17 @@ export default {
 }
 
 .custom-textarea {
-  margin-top: 5rem;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
   border: 1px solid #ccc;
   border-radius: 0.5rem;
   padding: 1rem;
   font-size: 1rem;
-  width: 100%;
-  max-width: 100%;
-  min-height: 200px;
   box-sizing: border-box;
+  resize: none;
+  margin-top: 0;
 }
 
 .custom-btn {
@@ -276,5 +301,27 @@ export default {
   gap: 1rem;
   margin-top: 2rem;
   width: 100%;
+}
+
+.row {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  justify-content: center;
+  align-items: flex-start;
+  margin-top: 2rem;
+  gap: 2rem;
+  align-items: stretch;
+}
+
+.column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.text-to-type-container {
+  align-items: flex-start;
+  text-align: justify;
 }
 </style>
