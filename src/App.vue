@@ -51,6 +51,7 @@
         <span v-if="anomalyThreshold !== null">({{ anomalyThreshold }})</span>
       </label>
       <input
+        id="anomaly-threshold-slider"
         class="custom-range-slider"
         type="range"
         min="0"
