@@ -22,6 +22,7 @@ const mlService = {
   async trainModel(trainingData) {
     const dataSizeThreshold = 10
     if (!trainingData || trainingData.length < dataSizeThreshold) {
+      console.log(`Not enough training data. Minimum required: ${dataSizeThreshold} samples.`)
       return
     }
 
@@ -36,7 +37,7 @@ const mlService = {
 
     // 3. Define the Autoencoder model architecture
     const numFeatures = this.featureNames.length
-    const encodingDimension = 4
+    const encodingDimension = 16
 
     this.model = tf.sequential()
 
@@ -79,11 +80,9 @@ const mlService = {
 
     // 6. Calculate anomaly threshold from training data reconstruction errors
     const reconstructions = this.model.predict(normalizedData)
-    // We use Reduction.NONE to get the error for each sample individually
-    const reconstructionErrors = tf.losses.meanSquaredError(
-      normalizedData,
-      reconstructions,
-      tf.Reduction.NONE,
+    const reconstructionErrors = tf.mean(
+      tf.square(tf.sub(normalizedData, reconstructions)),
+      1, // axis=1 means average across features (columns)
     )
 
     const { mean, variance } = tf.moments(reconstructionErrors)
