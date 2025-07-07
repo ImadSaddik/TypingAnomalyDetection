@@ -85,18 +85,27 @@ const mlService = {
       1, // axis=1 means average across features (columns)
     )
 
-    const { mean, variance } = tf.moments(reconstructionErrors)
-    const standardDeviation = tf.sqrt(variance)
-    // The threshold is the mean error plus 2.5 standard deviations.
-    // This is a common statistical approach to define an outlier boundary.
-    this.anomalyThreshold = (await mean.add(standardDeviation.mul(2.5)).data())[0]
-    console.log(`New anomaly threshold calculated: ${this.anomalyThreshold}`)
+    // Get min and max reconstruction errors for scaling
+    const reconstructionErrorsData = await reconstructionErrors.data()
+    const sortedErrors = [...reconstructionErrorsData].sort((a, b) => a - b)
+    this.minReconstructionError = sortedErrors[Math.floor(sortedErrors.length * 0.01)]
+    this.maxReconstructionError = sortedErrors[Math.floor(sortedErrors.length * 0.9)]
+
+    console.log(
+      `Reconstruction error range: ${this.minReconstructionError} to ${this.maxReconstructionError}`,
+    )
+
+    // Set default threshold to 0.5 (50th percentile)
+    this.anomalyThreshold = 0.5
+    console.log(`Default anomaly threshold set to: ${this.anomalyThreshold}`)
 
     // 7. Save the model, scaler, and the new threshold
     try {
       await this.model.save(MODEL_STORAGE_KEY)
       await featureScaler.save()
       localStorage.setItem(THRESHOLD_STORAGE_KEY, this.anomalyThreshold)
+      localStorage.setItem('min-reconstruction-error', this.minReconstructionError)
+      localStorage.setItem('max-reconstruction-error', this.maxReconstructionError)
     } catch (error) {
       console.error('Error saving model or scaler:', error)
     }
@@ -123,9 +132,16 @@ const mlService = {
       return tf.losses.meanSquaredError(normalizedInput, reconstruction)
     })
 
-    const score = await errorTensor.data()
+    const rawScore = await errorTensor.data()
     errorTensor.dispose()
-    return score
+
+    // Scale the raw score to 0-1 range
+    const scaledScore =
+      (rawScore[0] - this.minReconstructionError) /
+      (this.maxReconstructionError - this.minReconstructionError)
+
+    // Clamp to [0, 1] range in case of values outside training range
+    return [Math.max(0, Math.min(1, scaledScore))]
   },
 
   async loadModel() {
@@ -133,13 +149,20 @@ const mlService = {
       const loadedModel = await tf.loadLayersModel(MODEL_STORAGE_KEY)
       const scalerLoaded = featureScaler.load()
       const storedThreshold = localStorage.getItem(THRESHOLD_STORAGE_KEY)
+      const minError = localStorage.getItem('min-reconstruction-error')
+      const maxError = localStorage.getItem('max-reconstruction-error')
 
-      if (loadedModel && scalerLoaded && storedThreshold) {
+      if (loadedModel && scalerLoaded && storedThreshold && minError && maxError) {
         this.model = loadedModel
         this.anomalyThreshold = parseFloat(storedThreshold)
+        this.minReconstructionError = parseFloat(minError)
+        this.maxReconstructionError = parseFloat(maxError)
         console.log('Model loaded successfully:', this.model)
         console.log('Scaler loaded successfully:', featureScaler)
         console.log('Anomaly threshold loaded successfully:', this.anomalyThreshold)
+        console.log(
+          `Reconstruction error range: ${this.minReconstructionError} to ${this.maxReconstructionError}`,
+        )
         return true
       }
     } catch (error) {
