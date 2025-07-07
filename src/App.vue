@@ -7,14 +7,6 @@
       learn and adapt to your typing style.
     </p>
 
-    <p
-      v-if="lastAnomalyScore !== null"
-      class="description"
-      :class="{ 'anomaly-detected': isAnomaly }"
-    >
-      Anomaly score: {{ lastAnomalyScore.toFixed(4) }}
-    </p>
-
     <div class="row">
       <div class="column text-to-type-container">
         <h2 class="subtitle">Type this:</h2>
@@ -47,6 +39,44 @@
     <p v-if="collectedFeatures.length > 0" class="description secondary" style="margin-top: 2rem">
       Collected {{ collectedFeatures.length }} data points in total
     </p>
+
+    <div class="inference-results" v-if="isInInferenceMode">
+      <h2 class="title">Inference results</h2>
+      <p class="description" style="margin-bottom: 3rem">
+        Use this slider to set the anomaly detection threshold
+      </p>
+
+      <label class="description secondary" for="anomaly-threshold-slider">
+        Anomaly threshold
+        <span v-if="anomalyThreshold !== null">({{ anomalyThreshold }})</span>
+      </label>
+      <input
+        class="custom-range-slider"
+        type="range"
+        min="0"
+        max="1"
+        step="0.01"
+        v-model="anomalyThreshold"
+      />
+
+      <div class="probability-card">
+        <h2 class="subtitle">Probability of anomaly:</h2>
+        <p
+          class="subtitle"
+          :class="{ 'anomaly-detected': isAnomaly }"
+          style="margin-top: 1.5rem; margin-bottom: 0"
+        >
+          <span class="description" v-if="lastAnomalyScore !== null">
+            <span class="description" v-if="isAnomaly">Anomaly detected!</span>
+            <span class="description" v-else>Normal behavior</span>
+            ({{ lastAnomalyScore.toFixed(2) }})
+          </span>
+          <span class="description secondary" v-else
+            >Start typing to compute the anomaly score</span
+          >
+        </p>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -323,5 +353,57 @@ export default {
 .text-to-type-container {
   align-items: flex-start;
   text-align: justify;
+}
+
+.custom-range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 12px;
+  background: #e5e7eb;
+  border-radius: 6px;
+  outline: none;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  margin-top: 1rem;
+}
+
+.custom-range-slider:hover {
+  opacity: 1;
+}
+
+.custom-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  background: #111827;
+  cursor: pointer;
+  border-radius: 50%;
+  border: 6px solid white;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+}
+
+.custom-range-slider::-moz-range-thumb {
+  width: 32px;
+  height: 32px;
+  background: #111827;
+  cursor: pointer;
+  border-radius: 50%;
+  border: 6px solid white;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+}
+
+.probability-card {
+  background: white;
+  border: 1px solid #eee;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  margin-top: 3rem;
+}
+
+.inference-results {
+  width: 50%;
 }
 </style>
