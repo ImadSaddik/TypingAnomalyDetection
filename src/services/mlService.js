@@ -7,17 +7,7 @@ const THRESHOLD_STORAGE_KEY = 'keystroke-anomaly-threshold'
 const mlService = {
   model: null,
   anomalyThreshold: null,
-  featureNames: [
-    'holdTimeMean',
-    'holdTimeStandardDeviation',
-    'pressPressMean',
-    'pressPressStandardDeviation',
-    'releaseReleaseMean',
-    'releaseReleaseStandardDeviation',
-    'releasePressMean',
-    'releasePressStandardDeviation',
-    'backspaceCount',
-  ],
+  featureNames: ['previousKey', 'currentKey', 'digraphTime', 'previousHoldTime', 'currentHoldTime'],
 
   async trainModel(trainingData) {
     const dataSizeThreshold = 10
