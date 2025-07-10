@@ -98,6 +98,7 @@ export default {
     return {
       recordingDurationInSeconds: 10,
       collectedFeatures: [],
+      lastTrainingCount: 0,
       recordingInterval: null,
       isTraining: false,
       trainingTriggerInterval: 50,
@@ -119,10 +120,16 @@ export default {
   watch: {
     collectedFeatures: {
       handler(newFeatures) {
-        const shouldTrain =
-          newFeatures.length > 0 && newFeatures.length % this.trainingTriggerInterval === 0
+        const newLength = newFeatures.length
+        const interval = this.trainingTriggerInterval
+        const nextTrainingPoint = this.lastTrainingCount + interval
+
+        const shouldTrain = newLength >= nextTrainingPoint
+
+        console.log(`Collected features: ${newLength}, shouldTrain: ${shouldTrain}`)
         if (shouldTrain && !this.isTraining) {
           this.trainUserModel()
+          this.lastTrainingCount = Math.floor(newLength / interval) * interval
         }
       },
       deep: true,
@@ -153,6 +160,8 @@ export default {
         const storedData = localStorage.getItem('behaviorFeatures')
         if (storedData) {
           this.collectedFeatures = JSON.parse(storedData)
+          const interval = this.trainingTriggerInterval
+          this.lastTrainingCount = Math.floor(this.collectedFeatures.length / interval) * interval
         }
       } catch (error) {
         console.error('Error loading stored features:', error)
@@ -221,6 +230,7 @@ export default {
         resetDigraphTracker()
         this.lastAnomalyScore = null
         this.anomalyThreshold = null
+        this.lastTrainingCount = 0
         this.isModelReady = false
       } catch (error) {
         console.error('Error clearing local storage:', error)
