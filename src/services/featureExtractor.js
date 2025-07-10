@@ -1,96 +1,147 @@
-function calculateMeanAndStandardDeviation(values) {
-  if (values.length === 0) {
-    return { mean: 0, standardDeviation: 0 }
-  }
-  const mean = values.reduce((accumulator, value) => accumulator + value, 0) / values.length
-  const standardDeviation = Math.sqrt(
-    values
-      .map((x) => Math.pow(x - mean, 2))
-      .reduce((sumOfSquares, squaredDiff) => sumOfSquares + squaredDiff, 0) /
-      (values.length > 1 ? values.length - 1 : 1),
-  )
-  return { mean, standardDeviation }
+const KEY_MAPPING = {
+  // Letters (1-26)
+  a: 1,
+  b: 2,
+  c: 3,
+  d: 4,
+  e: 5,
+  f: 6,
+  g: 7,
+  h: 8,
+  i: 9,
+  j: 10,
+  k: 11,
+  l: 12,
+  m: 13,
+  n: 14,
+  o: 15,
+  p: 16,
+  q: 17,
+  r: 18,
+  s: 19,
+  t: 20,
+  u: 21,
+  v: 22,
+  w: 23,
+  x: 24,
+  y: 25,
+  z: 26,
+
+  // Numbers (27-36)
+  0: 27,
+  1: 28,
+  2: 29,
+  3: 30,
+  4: 31,
+  5: 32,
+  6: 33,
+  7: 34,
+  8: 35,
+  9: 36,
+
+  // Common punctuation (37-46)
+  ' ': 37,
+  '.': 38,
+  ',': 39,
+  '!': 40,
+  '?': 41,
+  ':': 42,
+  ';': 43,
+  "'": 44,
+  '"': 45,
+  '-': 46,
+
+  // Special keys (47-50)
+  backspace: 47,
+  enter: 48,
+  tab: 49,
+  shift: 50,
+
+  // Default for unknown keys
+  unknown: 0,
 }
 
+function keyToNumber(key) {
+  const normalizedKey = key.toLowerCase()
+  return KEY_MAPPING[normalizedKey] || KEY_MAPPING['unknown']
+}
+
+class DigraphTracker {
+  constructor() {
+    this.lastKeystroke = null
+    this.pendingPresses = {}
+  }
+
+  processEvents(events) {
+    const digraphFeatures = []
+    const completedKeystrokes = []
+
+    events.forEach((event) => {
+      if (event.type === 'keydown' && !this.pendingPresses[event.key]) {
+        this.pendingPresses[event.key] = event.timeStamp
+      } else if (event.type === 'keyup' && this.pendingPresses[event.key]) {
+        const currentKeystroke = {
+          key: event.key,
+          pressTime: this.pendingPresses[event.key],
+          releaseTime: event.timeStamp,
+        }
+
+        completedKeystrokes.push(currentKeystroke)
+        delete this.pendingPresses[event.key]
+      }
+    })
+
+    // Sort completed keystrokes by press time to get correct chronological order
+    completedKeystrokes.sort(
+      (keystrokeA, keystrokeB) => keystrokeA.pressTime - keystrokeB.pressTime,
+    )
+
+    // Process keystrokes in chronological order
+    completedKeystrokes.forEach((currentKeystroke) => {
+      if (this.lastKeystroke) {
+        const digraphTime = currentKeystroke.pressTime - this.lastKeystroke.pressTime
+        const previousHoldTime = this.lastKeystroke.releaseTime - this.lastKeystroke.pressTime
+        const currentHoldTime = currentKeystroke.releaseTime - currentKeystroke.pressTime
+
+        // Validate the digraph timing - skip if invalid
+        if (digraphTime > 0 && previousHoldTime > 0 && currentHoldTime > 0) {
+          const digraphFeature = {
+            previousKey: keyToNumber(this.lastKeystroke.key),
+            currentKey: keyToNumber(currentKeystroke.key),
+            digraphTime: digraphTime,
+            previousHoldTime: previousHoldTime,
+            currentHoldTime: currentHoldTime,
+          }
+
+          digraphFeatures.push(digraphFeature)
+        }
+      }
+
+      // Update last keystroke for next digraph
+      this.lastKeystroke = currentKeystroke
+    })
+
+    return digraphFeatures
+  }
+
+  reset() {
+    this.lastKeystroke = null
+    this.pendingPresses = {}
+  }
+}
+
+const digraphTracker = new DigraphTracker()
+
 export function extractFeaturesFromRawEvents(events) {
-  // We need at least two full keystrokes (press and release) to calculate digraph features.
+  // We need at least 4 events to form a digraph (2 keydowns and 2 keyups)
+  // This ensures we have enough data to extract meaningful features
   if (!events || events.length < 4) {
-    return null
+    return []
   }
 
-  const pendingPresses = {}
-  const completedKeystrokes = []
+  return digraphTracker.processEvents(events)
+}
 
-  // First, pair keydown and keyup events to form complete keystrokes.
-  events.forEach((event) => {
-    if (event.type === 'keydown' && !pendingPresses[event.key]) {
-      // Store the press time when a key is first pressed.
-      pendingPresses[event.key] = event.timeStamp
-    } else if (event.type === 'keyup' && pendingPresses[event.key]) {
-      // When the key is released, create a keystroke object.
-      completedKeystrokes.push({
-        key: event.key,
-        pressTime: pendingPresses[event.key],
-        releaseTime: event.timeStamp,
-      })
-      // Clear the pending press to allow for the same key to be pressed again.
-      delete pendingPresses[event.key]
-    }
-  })
-
-  // Sort the completed keystrokes by their press time to ensure chronological order.
-  completedKeystrokes.sort((keystrokeA, keystrokeB) => keystrokeA.pressTime - keystrokeB.pressTime)
-
-  if (completedKeystrokes.length < 2) {
-    return null
-  }
-
-  const holdTimes = []
-  const pressToPressTimes = []
-  const releaseToReleaseTimes = []
-  const releaseToPressTimes = []
-
-  for (let i = 0; i < completedKeystrokes.length; i++) {
-    const currentKeystroke = completedKeystrokes[i]
-
-    // Hold Time: The duration a single key is held down.
-    holdTimes.push(currentKeystroke.releaseTime - currentKeystroke.pressTime)
-
-    if (i > 0) {
-      const previousKeystroke = completedKeystrokes[i - 1]
-
-      // Press-Press Time: Time between pressing one key and pressing the next.
-      pressToPressTimes.push(currentKeystroke.pressTime - previousKeystroke.pressTime)
-
-      // Release-Release Time: Time between releasing one key and releasing the next.
-      releaseToReleaseTimes.push(currentKeystroke.releaseTime - previousKeystroke.releaseTime)
-
-      // Release-Press Time: Time between releasing one key and pressing the next.
-      releaseToPressTimes.push(currentKeystroke.pressTime - previousKeystroke.releaseTime)
-    }
-  }
-
-  // Calculate the mean and standard deviation for each list of timing features.
-  const { mean: holdTimeMean, standardDeviation: holdTimeStandardDeviation } =
-    calculateMeanAndStandardDeviation(holdTimes)
-  const { mean: pressPressMean, standardDeviation: pressPressStandardDeviation } =
-    calculateMeanAndStandardDeviation(pressToPressTimes)
-  const { mean: releaseReleaseMean, standardDeviation: releaseReleaseStandardDeviation } =
-    calculateMeanAndStandardDeviation(releaseToReleaseTimes)
-  const { mean: releasePressMean, standardDeviation: releasePressStandardDeviation } =
-    calculateMeanAndStandardDeviation(releaseToPressTimes)
-
-  const backspaceCount = completedKeystrokes.filter((k) => k.key === 'Backspace').length
-
-  return {
-    holdTimeMean,
-    holdTimeStandardDeviation,
-    pressPressMean,
-    pressPressStandardDeviation,
-    releaseReleaseMean,
-    releaseReleaseStandardDeviation,
-    releasePressMean,
-    releasePressStandardDeviation,
-    backspaceCount,
-  }
+export function resetDigraphTracker() {
+  digraphTracker.reset()
 }
