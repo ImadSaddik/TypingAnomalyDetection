@@ -27,7 +27,7 @@ const mlService = {
 
     // 3. Define the Autoencoder model architecture
     const numFeatures = this.featureNames.length
-    const encodingDimension = 16
+    const bottleNeckDimension = 16
 
     this.model = tf.sequential()
 
@@ -35,12 +35,40 @@ const mlService = {
     this.model.add(
       tf.layers.dense({
         inputShape: [numFeatures],
-        units: encodingDimension,
+        units: 8,
+        activation: 'relu',
+      }),
+    )
+    this.model.add(
+      tf.layers.dense({
+        units: 16,
+        activation: 'relu',
+      }),
+    )
+
+    // Bottleneck (compressed layer)
+    this.model.add(
+      tf.layers.dense({
+        units: bottleNeckDimension,
         activation: 'relu',
       }),
     )
 
     // Decoder
+    this.model.add(
+      tf.layers.dense({
+        units: 16,
+        activation: 'relu',
+      }),
+    )
+    this.model.add(
+      tf.layers.dense({
+        units: 8,
+        activation: 'relu',
+      }),
+    )
+
+    // Output layer
     this.model.add(
       tf.layers.dense({
         units: numFeatures,
@@ -57,7 +85,7 @@ const mlService = {
     // 5. Train the model
     await this.model.fit(normalizedData, normalizedData, {
       epochs: 50,
-      batchSize: 8,
+      batchSize: 16,
       shuffle: true,
       callbacks: {
         onEpochEnd: (epoch, logs) => {
