@@ -87,7 +87,7 @@
 
 <script>
 import behaviorTracker from './services/behaviorTracker.js'
-import { extractFeaturesFromRawEvents } from './services/featureExtractor.js'
+import { extractFeaturesFromRawEvents, resetDigraphTracker } from './services/featureExtractor.js'
 import featureScaler from './services/featureScaler.js'
 import mlService from './services/mlService.js'
 import textToTypeList from './assets/textToTypeList.json'
@@ -100,7 +100,7 @@ export default {
       collectedFeatures: [],
       recordingInterval: null,
       isTraining: false,
-      trainingTriggerInterval: 10,
+      trainingTriggerInterval: 50,
       lastAnomalyScore: null,
       anomalyThreshold: null,
       isInInferenceMode: false,
@@ -168,35 +168,35 @@ export default {
 
       this.recordingInterval = setInterval(async () => {
         const events = behaviorTracker.getEventsAndReset()
-        const features = extractFeaturesFromRawEvents(events)
-        if (!features || this.isEmptyObject(features)) {
-          console.warn('No features extracted from events:', events)
+        const digraphFeatures = extractFeaturesFromRawEvents(events)
+
+        if (!digraphFeatures || digraphFeatures.length === 0) {
           return
         }
 
         if (this.isInInferenceMode) {
-          if (mlService.model) {
-            console.log('Extracted features for inference:', features)
-            const score = await mlService.predictAnomalyScore(features)
-            if (score !== undefined && score !== null) {
-              // .data() returns an array-like object, so we take the first element
-              this.lastAnomalyScore = score[0]
-              return
+          for (const feature of digraphFeatures) {
+            if (mlService.model) {
+              const score = await mlService.predictAnomalyScore(feature)
+              if (score !== undefined && score !== null) {
+                this.lastAnomalyScore = score[0]
+              }
             }
           }
         } else {
-          const featureEntry = {
-            timestamp: new Date().toISOString(),
-            features: features,
-          }
+          digraphFeatures.forEach((feature) => {
+            const featureEntry = {
+              timestamp: new Date().toISOString(),
+              features: feature,
+            }
+            this.collectedFeatures.push(featureEntry)
+          })
 
-          this.collectedFeatures.push(featureEntry)
-          this.saveFeaturesToStorage()
+          if (digraphFeatures.length > 0) {
+            this.saveFeaturesToStorage()
+          }
         }
       }, this.recordingDurationInSeconds * 1000)
-    },
-    isEmptyObject(object) {
-      return Object.keys(object).length === 0
     },
     saveFeaturesToStorage() {
       try {
@@ -218,6 +218,7 @@ export default {
         this.collectedFeatures = []
         await mlService.resetModel()
         featureScaler.reset()
+        resetDigraphTracker()
         this.lastAnomalyScore = null
         this.anomalyThreshold = null
         this.isModelReady = false
