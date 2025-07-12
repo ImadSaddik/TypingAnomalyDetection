@@ -36,8 +36,8 @@
       </button>
     </div>
 
-    <p v-if="collectedFeatures.length > 0" class="description secondary" style="margin-top: 2rem">
-      Collected {{ collectedFeatures.length }} data points in total
+    <p v-if="collectedDataPoints.length > 0" class="description secondary" style="margin-top: 2rem">
+      Collected {{ collectedDataPoints.length }} data points in total
     </p>
 
     <div class="inference-results" v-if="isInInferenceMode">
@@ -87,7 +87,7 @@
 
 <script>
 import behaviorTracker from './services/behaviorTracker.js'
-import { extractFeaturesFromRawEvents, resetDigraphTracker } from './services/featureExtractor.js'
+import { resetDigraphTracker } from './services/dataPointExtractor.js'
 import featureScaler from './services/featureScaler.js'
 import mlService from './services/mlService.js'
 import textToTypeList from './assets/textToTypeList.json'
@@ -96,10 +96,7 @@ export default {
   name: 'App',
   data() {
     return {
-      recordingDurationInSeconds: 10,
-      collectedFeatures: [],
-      lastTrainingCount: 0,
-      recordingInterval: null,
+      collectedDataPoints: [],
       isTraining: false,
       trainingTriggerInterval: 50,
       lastAnomalyScore: null,
@@ -118,18 +115,15 @@ export default {
     },
   },
   watch: {
-    collectedFeatures: {
-      handler(newFeatures) {
-        const newLength = newFeatures.length
+    collectedDataPoints: {
+      handler(newDataPoints) {
+        const length = newDataPoints.length
         const interval = this.trainingTriggerInterval
-        const nextTrainingPoint = this.lastTrainingCount + interval
+        const shouldTrain = length > 0 && length % interval === 0
 
-        const shouldTrain = newLength >= nextTrainingPoint
-
-        console.log(`Collected features: ${newLength}, shouldTrain: ${shouldTrain}`)
+        console.log(`Collected data points: ${length}, shouldTrain: ${shouldTrain}`)
         if (shouldTrain && !this.isTraining) {
           this.trainUserModel()
-          this.lastTrainingCount = Math.floor(newLength / interval) * interval
         }
       },
       deep: true,
@@ -147,7 +141,7 @@ export default {
       this.anomalyThreshold = mlService.anomalyThreshold
       this.isModelReady = true
     }
-    this.loadStoredFeatures()
+    this.loadStoredDataPoints()
     this.startRecordingData()
     this.pickRandomText()
   },
@@ -155,82 +149,61 @@ export default {
     this.stopRecording()
   },
   methods: {
-    loadStoredFeatures() {
+    loadStoredDataPoints() {
       try {
-        const storedData = localStorage.getItem('behaviorFeatures')
+        const storedData = localStorage.getItem('behaviorDataPoints')
         if (storedData) {
-          this.collectedFeatures = JSON.parse(storedData)
-          const interval = this.trainingTriggerInterval
-          this.lastTrainingCount = Math.floor(this.collectedFeatures.length / interval) * interval
+          this.collectedDataPoints = JSON.parse(storedData)
         }
       } catch (error) {
-        console.error('Error loading stored features:', error)
-        this.collectedFeatures = []
+        console.error('Error loading stored data points:', error)
+        this.collectedDataPoints = []
       }
     },
     startRecordingData() {
-      if (this.recordingInterval) {
-        this.stopRecording()
-      }
-
-      behaviorTracker.startTracking()
-
-      this.recordingInterval = setInterval(async () => {
-        const events = behaviorTracker.getEventsAndReset()
-        const digraphFeatures = extractFeaturesFromRawEvents(events)
-
-        if (!digraphFeatures || digraphFeatures.length === 0) {
-          return
-        }
-
-        if (this.isInInferenceMode) {
-          for (const feature of digraphFeatures) {
-            if (mlService.model) {
-              const score = await mlService.predictAnomalyScore(feature)
-              if (score !== undefined && score !== null) {
-                this.lastAnomalyScore = score[0]
-              }
-            }
-          }
-        } else {
-          digraphFeatures.forEach((feature) => {
-            const featureEntry = {
-              timestamp: new Date().toISOString(),
-              features: feature,
-            }
-            this.collectedFeatures.push(featureEntry)
-          })
-
-          if (digraphFeatures.length > 0) {
-            this.saveFeaturesToStorage()
-          }
-        }
-      }, this.recordingDurationInSeconds * 1000)
+      this.stopRecording()
+      behaviorTracker.startTracking((dataPoint) => {
+        this.handleNewDataPoint(dataPoint)
+      })
     },
-    saveFeaturesToStorage() {
+
+    async handleNewDataPoint(dataPoint) {
+      console.log('New dataPoint extracted:', dataPoint)
+      if (this.isInInferenceMode) {
+        if (mlService.model) {
+          const score = await mlService.predictAnomalyScore(dataPoint)
+          if (score !== undefined && score !== null) {
+            this.lastAnomalyScore = score[0]
+          }
+        }
+      } else {
+        const dataPointEntry = {
+          timestamp: new Date().toISOString(),
+          features: dataPoint,
+        }
+        this.collectedDataPoints.push(dataPointEntry)
+        this.saveDataPointsToStorage()
+      }
+    },
+    saveDataPointsToStorage() {
       try {
-        localStorage.setItem('behaviorFeatures', JSON.stringify(this.collectedFeatures))
+        localStorage.setItem('behaviorDataPoints', JSON.stringify(this.collectedDataPoints))
       } catch (error) {
-        console.error('Error saving features to localStorage:', error)
+        console.error('Error saving data points to localStorage:', error)
       }
     },
     stopRecording() {
-      if (this.recordingInterval) {
-        clearInterval(this.recordingInterval)
-        this.recordingInterval = null
-      }
       behaviorTracker.stopTracking()
     },
     async clearLocalStorage() {
       try {
-        localStorage.removeItem('behaviorFeatures')
-        this.collectedFeatures = []
+        localStorage.removeItem('behaviorDataPoints')
+        this.collectedDataPoints = []
         await mlService.resetModel()
         featureScaler.reset()
         resetDigraphTracker()
         this.lastAnomalyScore = null
         this.anomalyThreshold = null
-        this.lastTrainingCount = 0
         this.isModelReady = false
       } catch (error) {
         console.error('Error clearing local storage:', error)
@@ -238,9 +211,9 @@ export default {
     },
     async trainUserModel() {
       this.isTraining = true
-      console.log(`Training model with ${this.collectedFeatures.length} data points.`)
+      console.log(`Training model with ${this.collectedDataPoints.length} data points.`)
       try {
-        await mlService.trainModel(this.collectedFeatures)
+        await mlService.trainModel(this.collectedDataPoints)
         this.anomalyThreshold = mlService.anomalyThreshold
         this.isModelReady = true
         console.log('Model training cycle completed successfully.')
