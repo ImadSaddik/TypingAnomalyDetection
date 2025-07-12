@@ -70,34 +70,28 @@ class DigraphTracker {
   constructor() {
     this.lastKeystroke = null
     this.pendingPresses = {}
+    this.streamingCallback = null
   }
 
-  processEvents(events) {
-    const digraphFeatures = []
-    const completedKeystrokes = []
+  setStreamingCallback(callback) {
+    this.streamingCallback = callback
+  }
 
-    events.forEach((event) => {
-      if (event.type === 'keydown' && !this.pendingPresses[event.key]) {
-        this.pendingPresses[event.key] = event.timeStamp
-      } else if (event.type === 'keyup' && this.pendingPresses[event.key]) {
-        const currentKeystroke = {
-          key: event.key,
-          pressTime: this.pendingPresses[event.key],
-          releaseTime: event.timeStamp,
-        }
-
-        completedKeystrokes.push(currentKeystroke)
-        delete this.pendingPresses[event.key]
+  processEvent(event) {
+    if (event.type === 'keydown' && !this.pendingPresses[event.key]) {
+      this.pendingPresses[event.key] = event.timeStamp
+    } else if (event.type === 'keyup' && this.pendingPresses[event.key]) {
+      const currentKeystroke = {
+        key: event.key,
+        pressTime: this.pendingPresses[event.key],
+        releaseTime: event.timeStamp,
       }
-    })
 
-    // Sort completed keystrokes by press time to get correct chronological order
-    completedKeystrokes.sort(
-      (keystrokeA, keystrokeB) => keystrokeA.pressTime - keystrokeB.pressTime,
-    )
+      delete this.pendingPresses[event.key]
 
-    // Process keystrokes in chronological order
-    completedKeystrokes.forEach((currentKeystroke) => {
+      let dataPoint = null
+
+      // If we have a previous keystroke, we can form a digraph
       if (this.lastKeystroke) {
         const digraphTime = currentKeystroke.pressTime - this.lastKeystroke.pressTime
         const previousHoldTime = this.lastKeystroke.releaseTime - this.lastKeystroke.pressTime
@@ -105,7 +99,7 @@ class DigraphTracker {
 
         // Validate the digraph timing - skip if invalid
         if (digraphTime > 0 && previousHoldTime > 0 && currentHoldTime > 0) {
-          const digraphFeature = {
+          dataPoint = {
             previousKey: keyToNumber(this.lastKeystroke.key),
             currentKey: keyToNumber(currentKeystroke.key),
             digraphTime: digraphTime,
@@ -113,15 +107,20 @@ class DigraphTracker {
             currentHoldTime: currentHoldTime,
           }
 
-          digraphFeatures.push(digraphFeature)
+          // Call streaming callback immediately
+          if (this.streamingCallback) {
+            this.streamingCallback(dataPoint)
+          }
         }
       }
 
-      // Update last keystroke for next digraph
+      // Always update last keystroke for next digraph
       this.lastKeystroke = currentKeystroke
-    })
 
-    return digraphFeatures
+      return dataPoint
+    }
+
+    return null
   }
 
   reset() {
@@ -132,14 +131,12 @@ class DigraphTracker {
 
 const digraphTracker = new DigraphTracker()
 
-export function extractFeaturesFromRawEvents(events) {
-  // We need at least 4 events to form a digraph (2 keydowns and 2 keyups)
-  // This ensures we have enough data to extract meaningful features
-  if (!events || events.length < 4) {
-    return []
-  }
+export function setStreamingCallback(callback) {
+  digraphTracker.setStreamingCallback(callback)
+}
 
-  return digraphTracker.processEvents(events)
+export function processEventStreaming(event) {
+  return digraphTracker.processEvent(event)
 }
 
 export function resetDigraphTracker() {
