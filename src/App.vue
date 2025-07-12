@@ -167,7 +167,6 @@ export default {
     },
 
     async handleNewDataPoint(dataPoint) {
-      console.log('New dataPoint extracted:', dataPoint)
       if (this.isInInferenceMode) {
         if (mlService.model) {
           const score = await mlService.predictAnomalyScore(dataPoint)
