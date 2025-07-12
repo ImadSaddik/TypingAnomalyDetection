@@ -107,14 +107,12 @@ class DigraphTracker {
             currentHoldTime: currentHoldTime,
           }
 
-          // Call streaming callback immediately
           if (this.streamingCallback) {
             this.streamingCallback(dataPoint)
           }
         }
       }
 
-      // Always update last keystroke for next digraph
       this.lastKeystroke = currentKeystroke
 
       return dataPoint
