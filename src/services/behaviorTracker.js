@@ -1,13 +1,15 @@
+import { processEventStreaming } from './dataPointExtractor.js'
+
 const behaviorTracker = {
   isTracking: false,
-  events: [],
   boundHandleKeyDown: null,
   boundHandleKeyUp: null,
+  dataPointCallback: null,
 
-  startTracking() {
+  startTracking(dataPointCallback = null) {
     if (this.isTracking) return
     this.isTracking = true
-    this.events = []
+    this.dataPointCallback = dataPointCallback
 
     this.boundHandleKeyDown = this.handleKeyDown.bind(this)
     this.boundHandleKeyUp = this.handleKeyUp.bind(this)
@@ -19,6 +21,7 @@ const behaviorTracker = {
   stopTracking() {
     if (!this.isTracking) return
     this.isTracking = false
+    this.dataPointCallback = null
 
     if (this.boundHandleKeyDown) {
       document.removeEventListener('keydown', this.boundHandleKeyDown)
@@ -28,25 +31,27 @@ const behaviorTracker = {
       document.removeEventListener('keyup', this.boundHandleKeyUp)
       this.boundHandleKeyUp = null
     }
-    return this.events
   },
 
   handleKeyDown(event) {
-    if (this.isTracking) {
-      this.events.push({ type: 'keydown', key: event.key, timeStamp: performance.now() })
-    }
+    this.handleKeyEvent(event, 'keydown')
   },
 
   handleKeyUp(event) {
-    if (this.isTracking) {
-      this.events.push({ type: 'keyup', key: event.key, timeStamp: performance.now() })
-    }
+    this.handleKeyEvent(event, 'keyup')
   },
 
-  getEventsAndReset() {
-    const currentEvents = [...this.events]
-    this.events = []
-    return currentEvents
+  handleKeyEvent(event, type) {
+    if (this.isTracking && this.dataPointCallback) {
+      const dataPoint = processEventStreaming({
+        type,
+        key: event.key,
+        timeStamp: performance.now(),
+      })
+      if (dataPoint) {
+        this.dataPointCallback(dataPoint)
+      }
+    }
   },
 }
 
