@@ -66,7 +66,7 @@ function keyToNumber(key) {
   return KEY_MAPPING[normalizedKey] || KEY_MAPPING['unknown']
 }
 
-class DigraphTracker {
+class DataPointExtractor {
   constructor() {
     this.lastKeystroke = null
     this.pendingPresses = {}
@@ -78,16 +78,19 @@ class DigraphTracker {
   }
 
   processEvent(event) {
-    if (event.type === 'keydown' && !this.pendingPresses[event.key]) {
-      this.pendingPresses[event.key] = event.timeStamp
-    } else if (event.type === 'keyup' && this.pendingPresses[event.key]) {
+    const key = event.key
+    const normalizedKey = key.toLowerCase()
+
+    if (event.type === 'keydown' && !this.pendingPresses[normalizedKey]) {
+      this.pendingPresses[normalizedKey] = event.timeStamp
+    } else if (event.type === 'keyup' && this.pendingPresses[normalizedKey]) {
       const currentKeystroke = {
-        key: event.key,
-        pressTime: this.pendingPresses[event.key],
+        key: key,
+        pressTime: this.pendingPresses[normalizedKey],
         releaseTime: event.timeStamp,
       }
 
-      delete this.pendingPresses[event.key]
+      delete this.pendingPresses[normalizedKey]
 
       let dataPoint = null
 
@@ -127,16 +130,16 @@ class DigraphTracker {
   }
 }
 
-const digraphTracker = new DigraphTracker()
+const dataPointExtractor = new DataPointExtractor()
 
 export function setStreamingCallback(callback) {
-  digraphTracker.setStreamingCallback(callback)
+  dataPointExtractor.setStreamingCallback(callback)
 }
 
 export function processEventStreaming(event) {
-  return digraphTracker.processEvent(event)
+  return dataPointExtractor.processEvent(event)
 }
 
 export function resetDigraphTracker() {
-  digraphTracker.reset()
+  dataPointExtractor.reset()
 }
