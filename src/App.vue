@@ -121,7 +121,6 @@ export default {
         const interval = this.trainingTriggerInterval
         const shouldTrain = length > 0 && length % interval === 0
 
-        console.log(`Collected data points: ${length}, shouldTrain: ${shouldTrain}`)
         if (shouldTrain && !this.isTraining) {
           this.trainUserModel()
         }
